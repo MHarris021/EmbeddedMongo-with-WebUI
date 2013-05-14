@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+       "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+       "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+<tiles-definitions>
+	<definition name="base.definition" template="/WEB-INF/layouts/template.jsp">
+		<put-attribute name="title" value="Database Status" />
+		<put-attribute name="header" value="/WEB-INF/views/header.jsp" />
+		<put-attribute name="content" value="" />
+	</definition>
+
+	<definition name="home" extends="base.definition">
+		<put-attribute name="title" value="Database Status" />
+		<put-attribute name="content" value="/WEB-INF/views/home.jsp" />
+	</definition>
+	
+	<definition name="databases" extends="base.definition">
+		<put-attribute name="title" value="Databases" />
+		<put-attribute name="content" value="/WEB-INF/views/databases.jsp" />
+	</definition>
+	
+	
+	<definition name="collections" extends="base.definition">
+		<put-attribute name="title" value="Collections" />
+		<put-attribute name="content" value="/WEB-INF/views/collections.jsp" />
+	</definition>
+</tiles-definitions>
