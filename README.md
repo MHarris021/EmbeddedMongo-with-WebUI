@@ -1,9 +1,9 @@
 EmbeddedMongo-with-WebUI
 ========================
-initial build by Michael Harris(MHarris021)\n
+initial build by Michael Harris(MHarris021), 
 Embed Mongo and Embed Process projects by Michael Mosmann, flapdoodle-OSS(embedmongo.flapdoodle.de), et al.
 
-This is a customization of the EmbeddedMongo project by FlapDoodle.
+  This is a customization of the EmbeddedMongo project by FlapDoodle.
 It has been combined with Spring to allow property configuration and a Web UI to start and stop mongodb.
 Additionally, there is some support for viewing databases and collections with the ability to delete individual entities from within a collection.
 
