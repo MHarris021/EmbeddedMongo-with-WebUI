@@ -1,6 +1,6 @@
 EmbeddedMongo-with-WebUI
 ========================
-initial build by Michael Harris(MHarris021)
+initial build by Michael Harris(MHarris021)\n
 Embed Mongo and Embed Process projects by Michael Mosmann, flapdoodle-OSS(embedmongo.flapdoodle.de), et al.
 
 This is a customization of the EmbeddedMongo project by FlapDoodle.
