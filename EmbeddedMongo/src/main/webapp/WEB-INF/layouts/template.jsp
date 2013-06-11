@@ -14,7 +14,7 @@
 </head>
 <body>
 	<tiles:insertAttribute name="header" />
-	<p>&nbsp</p>
+	<p>&nbsp;</p>
 	<table class="gridtable">
 		<tiles:insertAttribute name="content" />
 	</table>
