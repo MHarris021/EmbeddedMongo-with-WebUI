@@ -3,20 +3,12 @@ package sf.bank.utilities.controllers;
 import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.text.DateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,16 +30,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.WebApplicationContext;
 
 import sf.bank.utilities.beans.DataBaseStatus;
+import sf.bank.utilities.services.MongoDBService;
 
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.Mongo;
-
-import de.flapdoodle.embed.mongo.MongodExecutable;
-import de.flapdoodle.embed.mongo.MongodProcess;
-import de.flapdoodle.embed.mongo.config.AbstractMongoConfig.Net;
-import de.flapdoodle.embed.mongo.config.MongodConfig;
 
 /**
  * Handles requests for the application home page.
@@ -63,42 +48,13 @@ public class MongoDBController {
 	private WebApplicationContext webApplicationContext;
 
 	@Autowired
-	private DataBaseStatus status;
-
-	@Autowired
-	private MongodExecutable mongodExecutable;
-
-	@Autowired
-	private MongodConfig mongodConfig;
-
-	private MongodProcess mongodProcess;
-
-	private Mongo mongo;
-
-	@PostConstruct
-	public void init() throws UnknownHostException, URISyntaxException {
-		Net net = mongodConfig.net();
-		status.setPort(net.getPort());
-		status.setStatus("stopped");
-		String host = net.getServerAddress().getHostName();
-		status.setHost(new URI(host));
-
-	}
+	private MongoDBService mongoDBService;
 
 	@ResponseBody
 	@ResponseStatus(value = HttpStatus.OK)
 	@RequestMapping(value = "/status", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public DataBaseStatus getDataBaseStatus() {
-		List<String> databaseNames = null;
-		if (mongo != null) {
-			try {
-				databaseNames = mongo.getDatabaseNames();
-
-				status.setDatabaseNames(databaseNames);
-			} catch (Exception e) {
-				status.setDatabaseNames(databaseNames);
-			}
-		}
+		DataBaseStatus status = mongoDBService.getDatabaseStatus();
 		return status;
 	}
 
@@ -113,25 +69,19 @@ public class MongoDBController {
 	public ResponseEntity<Void> setDataBaseStatus(
 			@RequestBody DataBaseStatus status) throws IOException,
 			IllegalArgumentException {
-		if ("started".equalsIgnoreCase(status.getStatus())) {
+		if (MongoDBService.DATABASE_STARTED
+				.equalsIgnoreCase(status.getStatus())) {
+			mongoDBService.start();
+		} else if (MongoDBService.DATABASE_STOPPED.equalsIgnoreCase(status
+				.getStatus())) {
 
-			mongodProcess = mongodExecutable.start();
-			mongo = new Mongo(mongodConfig.net().getServerAddress()
-					.getHostName(), mongodConfig.net().getPort());
-
-		} else if ("stopped".equalsIgnoreCase(status.getStatus())) {
-			if (mongodProcess != null) {
-				mongo.close();
-				mongodProcess.stop();
-
-			}
-
+			mongoDBService.stop();
 		} else {
 			throw new IllegalArgumentException(String.format(
 					"Status code '%s' not recognized", status.getStatus()));
 		}
 
-		this.status.setStatus(status.getStatus());
+		mongoDBService.setDataBaseStatus(status);
 
 		HttpHeaders headers = new HttpHeaders();
 		headers.setLocation(linkTo(getClass()).slash("/status").toUri());
@@ -145,7 +95,7 @@ public class MongoDBController {
 	public String home(Locale locale, Model model) {
 		logger.info("Welcome home! The client locale is {}.", locale);
 
-		getDataBaseStatus();
+		DataBaseStatus status = mongoDBService.getDatabaseStatus();
 		model.addAttribute("status", status);
 
 		return "home";
@@ -182,9 +132,7 @@ public class MongoDBController {
 	@ResponseStatus(value = HttpStatus.OK)
 	@RequestMapping(value = "/databases/{databaseName}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public List<String> getCollections(@PathVariable String databaseName) {
-		Set<String> collections = mongo.getDB(databaseName)
-				.getCollectionNames();
-		List<String> names = new ArrayList<String>(collections);
+		List<String> names = mongoDBService.getCollectionNames(databaseName);
 		return names;
 	}
 
@@ -193,10 +141,8 @@ public class MongoDBController {
 	@RequestMapping(value = "/databases/{databaseName}/{collectionName}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public List<DBObject> getDBObjects(@PathVariable String databaseName,
 			@PathVariable String collectionName) {
-		DB database = mongo.getDB(databaseName);
-		DBCollection collection = database
-				.getCollectionFromString(collectionName);
-		List<DBObject> dbObjects = collection.find().toArray();
+		List<DBObject> dbObjects = mongoDBService.getDBObjects(databaseName,
+				collectionName);
 		return dbObjects;
 	}
 
@@ -204,28 +150,25 @@ public class MongoDBController {
 	public ResponseEntity<Void> deleteDBObject(
 			@PathVariable String databaseName,
 			@PathVariable String collectionName, @PathVariable String objectId) {
-		DB database = mongo.getDB(databaseName);
-		DBCollection collection = database
-				.getCollectionFromString(collectionName);
-		DBObject o = collection.findOne(new ObjectId(objectId));
-		collection.remove(o);
+		mongoDBService.deleteDBObject(databaseName, collectionName, objectId);
 		HttpHeaders headers = new HttpHeaders();
 		headers.setLocation(linkTo(getClass()).slash("databases")
 				.slash(databaseName).slash(collectionName).toUri());
 		return new ResponseEntity<Void>(null, headers, HttpStatus.ACCEPTED);
 	}
+	
 
 	@ResponseBody
 	@ResponseStatus(value = HttpStatus.OK)
 	@RequestMapping(value = "/databases", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public List<String> getDatabases() {
-		List<String> names = mongo.getDatabaseNames();
+		List<String> names = mongoDBService.getDatabaseNames();
 		return names;
 	}
 
 	@ModelAttribute("status")
 	public DataBaseStatus status() {
-		status = getDataBaseStatus();
+		DataBaseStatus status = mongoDBService.getDatabaseStatus();
 		return status;
 	}
 
@@ -245,19 +188,6 @@ public class MongoDBController {
 				.getContextPath();
 		String resourcesLocation = String.format("%s/resources", servletName);
 		return resourcesLocation;
-	}
-
-	@PreDestroy
-	public void teardown() {
-		if (mongo != null) {
-			mongo.close();
-		}
-		if (mongodProcess != null) {
-			mongodProcess.stop();
-		}
-		if (mongodExecutable != null) {
-			mongodExecutable.stop();
-		}
 	}
 
 }
